@@ -1,0 +1,8 @@
+{
+  "name": "pomodoro-vercel",
+  "type": "module",
+  "dependencies": {
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
+  }
+}
