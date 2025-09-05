@@ -638,7 +638,6 @@
                     <h2 class="text-xl font-bold text-dark mb-4 flex items-center">
                         <i class="fa fa-calendar-check-o text-primary mr-2"></i>复习表
                     </h2>
-                    <a class="btn" href="ack.html">🧠 思维导图</a>
 
                     <div id="review-filters" class="flex mb-4 gap-2 flex-wrap">
                         <button id="upcoming-filter" class="px-3 py-1 rounded-full bg-primary text-white text-sm btn-hover">即将到来</button>
@@ -1429,13 +1428,14 @@
                 reviewDate.setDate(reviewDate.getDate() + days);
                 
                 const review = {
-                    id: Date.now().toString() + '-' + days,
-                    taskId: currentTaskId,
+                    id: Date.now().toString() + '-' + days + '-' + task.id, // ✅ 用 task.id
+                    taskId: task.id,                                         // ✅ 用 task.id
                     taskName: task.name,
                     taskNotes: task.notes,
                     daysLater: days,
                     reviewDate: reviewDate.toISOString(),
-                    completed: false
+                    completed: false,
+                    completedCount: 0
                 };
                 
                 reviews.push(review);
@@ -1491,7 +1491,8 @@
                     taskNotes: task.notes,
                     daysLater: days,
                     reviewDate: reviewDate.toISOString(),
-                    completed: false
+                    completed: false,
+                    completedCount: 0 // ✅ 新增
                 };
                 
                 reviews.push(review);
@@ -2023,13 +2024,14 @@
                     const reviewDate = new Date(task.completedAt);
                     reviewDate.setDate(reviewDate.getDate() + days);
                     const review = {
-                        id: Date.now().toString() + '-' + days + '-' + task.id,
-                        taskId: task.id,
+                        id: Date.now().toString() + '-' + days + '-' + task.id, // ✅ 用 task.id
+                        taskId: task.id,                                         // ✅ 用 task.id
                         taskName: task.name,
                         taskNotes: task.notes,
                         daysLater: days,
                         reviewDate: reviewDate.toISOString(),
-                        completed: false
+                        completed: false,
+                        completedCount: 0
                     };
                     reviews.push(review);
                 });
@@ -2045,6 +2047,13 @@
         // 渲染复习记录
         function renderReviews() {
             reviewList.innerHTML = '';
+            // 统计每个任务已完成的复习次数
+            const taskCompletedCount = {};
+            reviews.forEach(r => {
+                if (r.completed) {
+                    taskCompletedCount[r.taskId] = (taskCompletedCount[r.taskId] || 0) + 1;
+                }
+            });
             
             // 根据筛选条件过滤复习
             let filteredReviews = [...reviews];
@@ -2207,7 +2216,7 @@
                 dateGroup.appendChild(dateHeader);
                 
                 reviewsByDate[dateStr].forEach(review => {
-                    const reviewElement = createReviewElement(review);
+                    const reviewElement = createReviewElement(review, taskCompletedCount); // ✅ 传进去
                     dateGroup.appendChild(reviewElement);
                 });
                 
@@ -2216,7 +2225,8 @@
         }
         
         // 创建复习元素
-        function createReviewElement(review) {
+        // 创建复习元素
+        function createReviewElement(review, taskCompletedCount) {
             const reviewElement = document.createElement('div');
             const reviewDate = new Date(review.reviewDate);
             const now = new Date();
@@ -2258,12 +2268,11 @@
         <div class="text-sm text-gray-500 mb-1">
             完成日期：${formatDate(taskCompletedAt)}
         </div>
-        
         <div class="text-sm text-gray-500 mb-1">
             复习日期：${formatDate(reviewDate)} 
         </div>
         <div class="text-sm text-gray-500 mb-1">
-            第 ${reviewIndex} 次复习（+${review.daysLater} 天）
+            第 ${reviewIndex} 次复习（+${review.daysLater} 天） ✅ 已复习 ${taskCompletedCount[review.taskId] || 0} 次
         </div>
         ${review.taskNotes ? `<div class="review-note">${escapeHtml(review.taskNotes)}</div>` : ''}
     `;
@@ -2277,15 +2286,27 @@
                 }
             });
 
-            // 双击标记完成/未完成
+            // ✅ 方案二：双击弹出确认框
             reviewElement.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                const reviewIndex = reviews.findIndex(r => r.id === review.id);
-                if (reviewIndex !== -1) {
-                    reviews[reviewIndex].completed = !reviews[reviewIndex].completed;
+
+                // 如果已经是已完成，不处理（可取消注释允许撤销）
+                if (review.completed) return;
+
+                const confirmed = confirm(
+                    `确认完成这次复习吗？\n\n任务：${review.taskName}\n复习日期：${formatDate(reviewDate)}\n这是第 ${reviewIndex} 次复习（+${review.daysLater} 天）`
+                );
+
+                if (!confirmed) return;
+
+                // ✅ 标记完成 + 次数 +1
+                const reviewIndexInArray = reviews.findIndex(r => r.id === review.id);
+                if (reviewIndexInArray !== -1) {
+                    reviews[reviewIndexInArray].completed = true;
+                    reviews[reviewIndexInArray].completedCount = (reviews[reviewIndexInArray].completedCount || 0) + 1;
                     saveData();
                     renderReviews();
-                    showNotification(reviews[reviewIndex].completed ? '已标记为完成' : '已标记为未完成');
+                    showNotification('复习已完成');
                 }
             });
 
@@ -2489,4 +2510,3 @@
     </script>
 </body>
 </html>
-
